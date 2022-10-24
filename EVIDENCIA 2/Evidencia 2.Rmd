@@ -1,0 +1,182 @@
+---
+title: "Evidencia 1 | Análisis inicial"
+author: 'José Aram Méndez Gómez A01657142'
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<center>
+![Logo Tec](./logoTec.png)
+
+**Análisis de Biología Computacional**
+
+BT1013.324
+
+Evidencia 2 | Proyecto Integrador  
+Fecha de entrega: 26/04/2022  
+<center>
+
+**Parte 1 - Video: **
+
+Liga al Video en Youtube: https://youtu.be/P4qz32Z24QI
+
+**Parte 2 - Código:**
+
+Se obtuvieron las secuencias de SARS-CoV-2 reportadas en los 20 países con más casos fuente: https://es.statista.com/estadisticas/1091192/paises-afectados-por-el-coronavirus-de-wuhan-segun-los-casos-confirmados/ 1. Estados Unidos 2. India 3. Brasil 4. Francia 5. Alemania 6. Reino Unido 7. Rusia 8. Corea del Sur 9. Italia 10. Turquía 11. España 12. Vietnam 13. Argentina 14. Países Bajos 15. Japón 16. Irán 17. Colombia 18. Indonesia 19. Polonia 20. Australia
+
+Secuencias tomadas de GISAID. Para cada país se ha tomado la secuencia cuya fecha de colección está entre el 2021-01-01 y 2021-12-31, y que además está completa:
+```{r}
+library(Biostrings)
+library(seqinr)
+library(adegenet)
+library(ape)
+library(DECIPHER)
+library(viridis)
+library(ggplot2)
+
+virus_seq <- c(
+  eu = read.fasta("./fastascovid/covidUSA.fasta"),
+  id = read.fasta("./fastascovid/covidIndia.fasta"),
+  br = read.fasta("./fastascovid/covidBrasil.fasta"),
+  fr = read.fasta("./fastascovid/covidFrancia.fasta"),
+  al = read.fasta("./fastascovid/covidAlemania.fasta"),
+  uk = read.fasta("./fastascovid/covidUk.fasta"),
+  ru = read.fasta("./fastascovid/covidRusia.fasta"),
+  cs = read.fasta("./fastascovid/covidCorea.fasta"),
+  it = read.fasta("./fastascovid/covidItalia.fasta"),
+  tq = read.fasta("./fastascovid/covidTurquia.fasta"),
+  es = read.fasta("./fastascovid/covidEspaña.fasta"),
+  vt = read.fasta("./fastascovid/covidVietnam.fasta"),
+  ar = read.fasta("./fastascovid/covidArgentina.fasta"),
+  ho = read.fasta("./fastascovid/covidNether.fasta"),
+  jp = read.fasta("./fastascovid/covidJapon.fasta"),
+  ir = read.fasta("./fastascovid/covidIran.fasta"),
+  co = read.fasta("./fastascovid/covidColombia.fasta"),
+  is = read.fasta("./fastascovid/covidIndonesia.fasta"),
+  po = read.fasta("./fastascovid/covidPolonia.fasta"),
+  au = read.fasta("./fastascovid/covidAustralia.fasta")
+  )
+
+names(virus_seq) <- c("EUA", "India", "Brasil", "Francia", "Alemania", "UK", "Rusia", "CoreaSur", "Italia", "Turquía", "España", "Vietnam", "Argentina", "Holanda", "Japón", "Irán", "Colombia","Indonesia", "Polonia", "Australia")
+
+lapply(virus_seq,length)
+
+lapply(virus_seq,table)
+bases <- function(chains){
+  comps <- lapply(chains, table)
+  b <- c()
+  for(el in comps){
+    b <- c(b,as.numeric(el))
+  }
+  return(list(
+    a = b[seq(from = 1, to = length(b), by = 4)],
+    c = b[seq(from = 2, to = length(b), by = 4)],
+    g = b[seq(from = 3, to = length(b), by = 4)],
+    t = b[seq(from = 4, to = length(b), by = 4)]
+  ))
+}
+B <- bases(virus_seq)
+
+colors <- c("pink", "blue", "purple", "cyan", "magenta", "gray", "red", "black", "green", "orange", "white", "brown", "blueviolet", "aquamarine","darkgreen", "gold", "deeppink", "navy", "maroon", "plum2")
+
+par(mar = c(5,4,4,8), xpd = T)
+barplot(matrix(c(B$a, B$c, B$g, B$t), nrow = 20), beside = TRUE, col = colors, las =2, names.arg = c("A", "C", "G", "T"), ylab = "Frecuencia", xlab = "Bases")
+
+legend("topright",legend = names(virus_seq) , col = colors,  pt.cex = 1, pch = 15 , cex = 1, inset = c(-0.2,0))
+
+
+
+str(virus_seq)
+
+attributes(virus_seq)
+
+names(virus_seq)
+
+attr(virus_seq, "species")
+
+
+
+write.dna(virus_seq,  
+          file ="virus_seqs2.fasta", 
+          format = "fasta", 
+          append = FALSE, 
+          nbcol = 6, 
+          colsep = " ", 
+          colw = 10)
+
+
+virus_seq_no_alin <- readDNAStringSet("virus_seqs2.fasta", format = "fasta")
+
+virus_seq_no_alin
+
+
+virus_seq_no_alin <- OrientNucleotides(virus_seq_no_alin)
+
+virus_seq_alin <- AlignSeqs(virus_seq_no_alin)
+
+
+BrowseSeqs(virus_seq_alin, highlight=0)
+
+writeXStringSet(virus_seq_alin, file="virus_seq_alin.fasta")
+
+virus_alin <- read.alignment("virus_seq_alin.fasta", format = "fasta")
+
+
+matriz_distancia <- dist.alignment(virus_alin, matrix = "similarity")
+
+
+temp <- as.data.frame(as.matrix(matriz_distancia))
+table.paint(temp, cleg=0, clabel.row=.5, clabel.col=.5) + scale_color_viridis()
+
+
+
+
+
+virus_tree <- nj(matriz_distancia)
+class(virus_tree) 
+## [1] "phylo"
+virus_tree <- ladderize(virus_tree)
+
+
+plot(virus_tree, cex = 0.6)
+title("Árbol: Análisis jerárquico global")
+```
+
+
+
+**Interpretación y conclusiones**
+
+De la gráfica en dónde se compara el tamaño de bases que tiene cada secuencia, al igual que en la Evdencia 1, se puede notar claramente la similitudes que existen en la proporción de bases que guardan los distintos virus sars-Cov2 encontrados alrededor del mundo. La grafica representa excelentemente bien que las barras de la gráfica en cada una de las bases (A C G T) parecen conformar un solo bloque en lo que a una base repecta, lo que nos indica que los virus analizados son demasiado parecidos. Y en realidad, es despreciable la poca variación que se llega a observar en cada base y sin embargo, estas proporciones codifican distintas características que pueden hacer la diferencia entre que un virus sea mortal o no.
+
+En la segunda parte de esta evidencia se realizó un análisis jerárquico global, que constó en alinear las secuencias y encontrar las distintas coincidencias entre cada uno de los virus, con la finalidad de plantear gráficamente las relaciones y características que emparentan a cada uno de los virus mediante un árbol filogenético. Al elaborar dicho árbol, se debe suponer que los virus a analizar difieren en algunas partes de su secuencia, tienen un ancestro común y que de hecho podrá encontrarse una relación objetiva dada en gran medida por la distancia en las ramas de un virus a otro. De este modo, entre menor sea la distancia de un virus a otro, más emparentados estarán. Para el caso del árbol graficado y debido al caso elegido, los virus fueron recuperados de los 20 países con más casos.
+
+Es interesante notar que el árbol pareciera que está alargandose mientras vamos bajando. Concentrando en la parte superior a países que si nos ponemos a pensar no tienen nada en común.Por otro lado, en la parte inferior vemos una tendencia bastante interesante y es que, existe una mayor proporción de países de occidente(europa) como Holanda, Reino Unido, Italia, Francia, Alemania. Recordando que entre más cercanos en las ramas estén, los virus tendrán más en común, podría decirse que los virus de occidente provienen de una secuncia particular que pudo ser procedente de los países en el sector superior.También cabe hacer notar que los virus que están más cercanos a nivel genético son de hecho los virus que se han recuperado de los países que guardan una menor distancia geográfica. Por ejemplo en el sector superior observamos a países sudamericanos como Colombia y argentina bastante emparentados y también la clara similitud entre las secuencias de los países europeas en el sector inferior. Claramente existe variaciones y no todo es perfecto, por ejemplo tenemos a Brasil en ese sector inferior, pero en conclusión, considero estos análisis de suma importancia por que así desarrollamos nuestra curiosidad y nuestra capacidad de análisis y aunque en un primer vistazo no veamos nada en el árbol filógenetico, si le prestamos la suficiente atención, podría decirnos toda la historia del virus y como fue evolucionando y cambiando con el tiempo.
+
+
+
+**Datos Personales**
+
+José Aram Méndez Gómez A01657142
+
+
+**Referencias:**
+
+Secuencias obtenidas de GISAID EpiCov Database, https://www.epicov.org/
+
+Paqueterías Utilizadas: Biostrings H. Pagès, P. Aboyoun, R. Gentleman and S. DebRoy (2021). Biostrings: Efficient manipulation of biological strings. R package version 2.62.0. https://bioconductor.org/packages/Biostrings
+
+seqinr Charif, D. and Lobry, J.R. (2007)
+
+adegenet Jombart, T. (2008) adegenet: a R package for the multivariate analysis of genetic markers. Bioinformatics 24: 1403-1405. doi: 10.1093/bioinformatics/btn129
+
+ape Paradis E. & Schliep K. 2019. ape 5.0: an environment for modern phylogenetics and evolutionary analyses in R. Bioinformatics 35: 526-528.
+
+viridis Simon Garnier, Noam Ross, Robert Rudis, Antônio P. Camargo, Marco Sciaini, and Cédric Scherer (2021). Rvision - Colorblind-Friendly Color Maps for R. R package version 0.6.2.
+
+DECIPHER Wright ES (2016). “Using DECIPHER v2.0 to Analyze Big Biological Sequence Data in R.” The R Journal, 8(1), 352-359.
+
+
